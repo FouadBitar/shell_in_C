@@ -1,0 +1,30 @@
+echo hello world
+touch hello.txt
+rm hello.txt
+echo hello, world
+pwd
+ls
+which sh
+mkdir -p path/to/file/name
+cd path/
+cd ../path/to
+chdir file
+chdir ../
+touch hello.txt index.html app.py
+ls
+rm hello.txt
+ls -1
+wc app.py
+cat index.html
+pwd
+history
+touch .hidden.txt
+ls -a
+history
+echo preparing to exit
+cd ../../
+ip route show
+ls -R
+rm -rf path
+invalid command
+history
