@@ -8,57 +8,39 @@
 #include <signal.h>
 
 
-// * interactive program: reads from terminal and writes to terminal
-//read line, if valid run command, keep waiting
-//takes a string and tries to execute it
-//assume string points to valid executable file always available on disk (i.e. ls)
+//function declarations
 int my_system(char* cmd[]);
 char* get_a_line();
-void printDir();
-char** tokenize(char* line);
-
 int changeDir(char **args);
 int internal_cmd(char** args, char* hist[], int* pCurrent); 
 int displayHistory(char* history[], int *current);
 int storeHistory(char* cmd,char* hist[], int* pCurrent);
 
+//helper function declarations
+void printDir();
+char** tokenize(char* line);
+int checkUserWantsToEscape();
+
 
 //global variables
 #define MAXIMUM_CMD_LENGTH  100
 #define HISTORY_LENGTH 100
-
 int endOfFile = 0;
-
-
-//************signal section
-
-typedef void (*sighandler_t)(int);
-sighandler_t signal(int signum, sighandler_t handler);
+int tryingToEscape = 0;
 
 
 
+//signal functions
+//handles CTNL C
 void sigint_handler_C(int signo) {
     printf("\n\tDo you want to exit this shell (y/n)? : ");
-    fflush(stdin);
-    int r = getchar();
-    if (r == '\n') r = getchar();
-    while(r != 'n' && r != 'N' && r != 'y' && r != 'Y') {
-        printf("\n\tinvalid input, enter the choice(y/Y/n/N) again : ");
-        r = getchar();
-        if (r == '\n') r = getchar();
-    }
-
-    if(r == 'y' || r == 'y') exit(0);
+    tryingToEscape = 1; //raise flag 
+    
 }
-
+//handles CTNL Z
 void sigtstp_handler_Z(int signo) {
     printf("\n\tMust use Ctl C! \n");
 }
-
-//************end of signal section
-
-
-
 
 
 
@@ -72,13 +54,6 @@ int main (int argc, char *argv[]) {
     int* pCurrent = &current;
     int check = -1;
     
-    signal(SIGINT, sigint_handler_C);
-    signal(SIGTSTP, sigtstp_handler_Z);
-
-
-
-    //storeHistory(line, hist, pCurrent);
-
 
     //initialize history buffer to be NULL
     for (i = 0; i < HISTORY_LENGTH; i++) {
@@ -86,7 +61,8 @@ int main (int argc, char *argv[]) {
     }
     
     while(1) {
-
+        signal(SIGINT, sigint_handler_C);
+        signal(SIGTSTP, sigtstp_handler_Z);
         //print directory 
         printDir();
 
@@ -160,6 +136,13 @@ char* get_a_line() {
     }
 
     while(1) {
+
+        if(tryingToEscape == 1) {
+            int yesNo = checkUserWantsToEscape();
+            if (yesNo == 1) exit(0);
+            else tryingToEscape = 0;
+        }
+
         nextChar = getchar();   //next char from stdin
 
         if(nextChar == EOF) endOfFile = 1;
@@ -179,27 +162,25 @@ char* get_a_line() {
         }
     }
 }
-#define TOKEN_DELIM " \t\r\n\a"
-char** tokenize(char* line) {
-    int buffSize = 1024;
-    int position = 0;
-    char **tokens = malloc(buffSize * sizeof(char*));
-    char *token;
 
-    if (!tokens) {
-        fprintf(stderr, "allocation error\n");
-        exit(-1);
+
+int checkUserWantsToEscape() {
+    int r = getchar();
+    if (r == '\n') r = getchar();
+    while(r != 'n' && r != 'N' && r != 'y' && r != 'Y') {
+        printf("\n\tinvalid input, enter the choice(y/Y/n/N) again : ");
+        r = getchar();
+        if (r == '\n') r = getchar();
     }
 
-    token = strtok(line, TOKEN_DELIM);
-    while (token != NULL || token != '\0') {
-        tokens[position] = token;
-        position++;
-        token = strtok(NULL, TOKEN_DELIM);
-    }
-    tokens[position] = NULL;
-    return tokens;
+    if(r == 'y' || r == 'y') return 1;
+
+    return 0;
 }
+
+
+
+
 
 
 int changeDir(char** args) {
@@ -247,17 +228,17 @@ int displayHistory(char* history[], int* current) {
     printf("\n");
     int curr = *current;
     int i = curr;
-        int hist_num = 1;
+    int hist_num = 1;
 
-        do {
-                if (history[i]) {
-                        printf("%4d  %s\n", hist_num, history[i]);
-                        hist_num++;
-                }
+    do {
+        if (history[i]) {
+            printf("%4d  %s\n", hist_num, history[i]);
+            hist_num++;
+        }
 
-                i = (i + 1) % HISTORY_LENGTH;
+        i = (i + 1) % HISTORY_LENGTH;
 
-        } while (i != curr);
+    } while (i != curr);
 
         return 0;
     
@@ -280,6 +261,33 @@ int storeHistory(char* cmd, char* hist[], int* pCurrent){
     return 0;
 }
 
+
+
+//tokenizes the line of input to better handle
+#define TOKEN_DELIM " \t\r\n\a"
+char** tokenize(char* line) {
+    int buffSize = 1024;
+    int position = 0;
+    char **tokens = malloc(buffSize * sizeof(char*));
+    char *token;
+
+    if (!tokens) {
+        fprintf(stderr, "allocation error\n");
+        exit(-1);
+    }
+
+    token = strtok(line, TOKEN_DELIM);
+    while (token != NULL || token != '\0') {
+        tokens[position] = token;
+        position++;
+        token = strtok(NULL, TOKEN_DELIM);
+    }
+    tokens[position] = NULL;
+    return tokens;
+}
+
+
+// prints the current directory
 void printDir() { 
     char cwd[1024]; 
     getcwd(cwd, sizeof(cwd)); 
