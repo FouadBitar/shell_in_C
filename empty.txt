@@ -1,5 +1,0 @@
-ls -la
-echo hello
-pwd
-history      
-
